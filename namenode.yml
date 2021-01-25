@@ -1,0 +1,55 @@
+ - hosts: namenode
+   tasks:
+   - name: "copy the jdk and hadoop software"
+     copy:
+         src: "{{ item }}"
+         dest: "/root/"
+     loop:
+            - jdk-8u171-linux-x64.rpm
+            - hadoop-1.2.1-1.x86_64.rpm
+
+   - name: "Check jdk install or not"
+     command: "jps"
+     register: x
+     ignore_errors: yes
+
+   - name: "Install jdk"
+     command: "rpm -ivh jdk-8u171-linux-x64.rpm"
+     when: x.rc != 0
+
+   - name: "Check hadoop install or not"
+     command: "hadoop version"
+     register: y
+     ignore_errors: yes
+
+   - name: "Install Hadoop"
+     command: "rpm -ivh hadoop-1.2.1-1.x86_64.rpm --force"
+     when: y.rc != 0              
+
+   - name: "Create Namenode dir"
+     file:
+         path: "/nn"
+         state: directory
+
+   - name: "copy the hadoop configuration file"
+     template: 
+         src: "{{ item }}"
+         dest: "/etc/hadoop/"
+     loop:
+         - "/root/hadoop/namenode/hdfs-site.xml" 
+         - "/root/hadoop/namenode/core-site.xml"    
+
+   - name: "format namenode directory"
+     command: "hadoop namenode -format -force"
+     ignore_errors: yes
+     
+   - name: "start namenode service"
+     command: "hadoop-daemon.sh start namenode"
+     ignore_errors: yes
+
+   - name: "Create fiewall rule"
+     firewalld:
+         port: "9001/tcp"
+         immediate: yes
+         state: enabled
+
